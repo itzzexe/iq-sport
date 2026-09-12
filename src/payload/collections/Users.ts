@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { authenticated } from '../access'
+import { serverURL } from '../../lib/server-url'
 import { L } from '../labels'
 
 export const Users: CollectionConfig = {
@@ -14,6 +15,9 @@ export const Users: CollectionConfig = {
     tokenExpiration: 60 * 60 * 24 * 7,
     maxLoginAttempts: 8,
     lockTime: 10 * 60 * 1000,
+    // The session cookie is marked Secure whenever the site itself is served
+    // over HTTPS (plain http is only ever localhost).
+    cookies: { secure: serverURL().startsWith('https://'), sameSite: 'Lax' },
   },
   access: {
     admin: ({ req }) => Boolean(req.user),
