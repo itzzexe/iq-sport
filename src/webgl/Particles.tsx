@@ -5,7 +5,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { PARTICLE_FRAG, PARTICLE_VERT } from './glsl'
 import { damp, phase } from './store'
-import { BRAND } from '@/data/site'
+import { BRAND } from './brand'
 
 /**
  * Volumetric dust. It carries the brand colours through the whole scroll and

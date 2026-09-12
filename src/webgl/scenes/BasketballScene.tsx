@@ -4,7 +4,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { damp, phase } from '../store'
-import { COLORS, GLSL_SHADE, type SceneProps } from './common'
+import { COLORS, GLSL_SHADE, drive, type SceneProps } from './common'
 
 /**
  * Basketball — the one page that uses the palette's orange.
@@ -48,7 +48,6 @@ void main() {
   s = max(s, seam(o.y, 0.025));
   s = max(s, seam(o.x, 0.025));
   s = max(s, seam(abs(o.z) - 0.62, 0.025) * step(0.0, 0.62 - abs(o.y) * 0.4));
-  s = max(s, seam(abs(o.z) + 0.62 - 1.24, 0.0));
 
   // Pebbled grain, cheap: high-frequency noise from the object normal.
   float grain = fract(sin(dot(floor(o.xy * 140.0), vec2(12.9898, 78.233))) * 43758.5453);
@@ -101,7 +100,7 @@ void main() {
 }
 `
 
-export default function BasketballScene({ tier, reducedMotion }: SceneProps) {
+export default function BasketballScene({ tier, reducedMotion, progress }: SceneProps) {
   const group = useRef<THREE.Group>(null)
   const ball = useRef<THREE.Mesh>(null)
   const ballMat = useRef<THREE.ShaderMaterial>(null)
@@ -126,6 +125,7 @@ export default function BasketballScene({ tier, reducedMotion }: SceneProps) {
   const seg = tier === 'high' ? 96 : tier === 'mid' ? 64 : 40
 
   useFrame((state, delta) => {
+    const { hero, page, weight } = drive(progress)
     const dt = Math.min(delta, 1 / 30)
     const g = group.current
     const b = ball.current
@@ -133,7 +133,7 @@ export default function BasketballScene({ tier, reducedMotion }: SceneProps) {
     const st = s.current
     const t = state.clock.elapsedTime
 
-    st.opacity = damp(st.opacity, phase.entered ? 1 : 0, 3, dt)
+    st.opacity = damp(st.opacity, phase.entered ? weight : 0, 3, dt)
     st.px = damp(st.px, phase.pointer.x, 3, dt)
     st.py = damp(st.py, phase.pointer.y, 3, dt)
 
@@ -141,7 +141,7 @@ export default function BasketballScene({ tier, reducedMotion }: SceneProps) {
     const rate = reducedMotion ? 0.35 : 1.35
     const raw = Math.abs(Math.sin(t * rate))
     const height = Math.pow(raw, 0.62)
-    const amp = 2.6 + phase.hero * 1.2
+    const amp = 2.6 + hero * 1.2
     const y = 1.1 + height * amp
 
     // Squash on contact, stretch on the way up.
@@ -160,9 +160,9 @@ export default function BasketballScene({ tier, reducedMotion }: SceneProps) {
     }
     st.wasDown = down
 
-    g.rotation.y = phase.page * Math.PI * 1.3 + st.px * 0.25
+    g.rotation.y = page * Math.PI * 1.3 + st.px * 0.25
     g.rotation.x = st.py * 0.08
-    g.position.z = -phase.hero * 2.2
+    g.position.z = -hero * 2.2
     g.visible = st.opacity > 0.01
 
     ballMat.current.uniforms.uOpacity.value = st.opacity

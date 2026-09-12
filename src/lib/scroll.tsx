@@ -197,3 +197,13 @@ export function useScrollLock(locked: boolean) {
     }
   }, [locked, lenis])
 }
+
+/**
+ * True once Lenis and the ScrollTrigger scroller proxy are wired up. Effects
+ * that create ScrollTriggers must wait for this: a trigger created before the
+ * proxy exists keeps reading the native scroller and never updates under Lenis.
+ */
+export function useScrollReady() {
+  const ctx = useContext(Ctx)
+  return ctx ? ctx.ready : true
+}

@@ -1,11 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useLang } from '@/lib/lang'
 import { useScrollLock } from '@/lib/scroll'
+import type { Locale } from '@/lib/i18n'
 import { phase } from '@/webgl/store'
-import { UI, SITE } from '@/data/site'
-import { LogoMark } from './primitives'
+import { LogoMark } from './brand/Logo'
 
 /**
  * Holds the page still until the first paint is genuinely ready, then hands
@@ -13,8 +12,7 @@ import { LogoMark } from './primitives'
  * than a fixed timer, but it is also capped — a slow connection should not
  * leave someone staring at a number that never moves.
  */
-export function Preloader() {
-  const { t, lang } = useLang()
+export function Preloader({ locale, siteName, loadingLabel }: { locale: Locale; siteName: string; loadingLabel: string }) {
   const [progress, setProgress] = useState(0)
   const [done, setDone] = useState(false)
   const [gone, setGone] = useState(false)
@@ -85,6 +83,8 @@ export function Preloader() {
 
   if (gone) return null
 
+  const rtl = locale === 'ar'
+
   return (
     <div
       className={[
@@ -92,12 +92,10 @@ export function Preloader() {
         'transition-[clip-path,opacity] duration-[1100ms] ease-[cubic-bezier(0.76,0,0.24,1)]',
         done ? 'pointer-events-none opacity-0' : 'opacity-100',
       ].join(' ')}
-      style={{
-        clipPath: done ? 'inset(0 0 100% 0)' : 'inset(0 0 0% 0)',
-      }}
+      style={{ clipPath: done ? 'inset(0 0 100% 0)' : 'inset(0 0 0% 0)' }}
       role="status"
       aria-live="polite"
-      aria-label={`${t(UI.loading)} ${progress}%`}
+      aria-label={`${loadingLabel} ${progress}%`}
     >
       <div className="flex flex-col items-center gap-8">
         {/* The mark is drawn twice and the top copy is wiped in from the reading
@@ -108,24 +106,19 @@ export function Preloader() {
           <LogoMark
             className="absolute inset-0 w-full text-green"
             style={{
-              clipPath: `inset(0 ${lang === 'ar' ? 0 : 100 - progress}% 0 ${lang === 'ar' ? 100 - progress : 0}%)`,
+              clipPath: `inset(0 ${rtl ? 0 : 100 - progress}% 0 ${rtl ? 100 - progress : 0}%)`,
               transition: 'clip-path 240ms linear',
             }}
           />
         </div>
 
         <div className="flex items-baseline gap-4">
-          <span className="u-mono text-xs text-n-500">{t(SITE.name)}</span>
-          <span className="u-mono text-2xl tabular-nums text-paper">
-            {String(progress).padStart(3, '0')}
-          </span>
+          <span className="text-sm text-n-500">{siteName}</span>
+          <span className="u-mono text-2xl tabular-nums text-paper">{String(progress).padStart(3, '0')}</span>
         </div>
 
         <div className="h-px w-40 overflow-hidden bg-n-800 sm:w-56">
-          <div
-            className="h-full bg-green transition-[width] duration-200 ease-linear"
-            style={{ width: `${progress}%` }}
-          />
+          <div className="h-full bg-green transition-[width] duration-200 ease-linear" style={{ width: `${progress}%` }} />
         </div>
       </div>
     </div>

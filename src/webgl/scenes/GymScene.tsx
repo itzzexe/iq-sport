@@ -4,7 +4,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { damp, phase } from '../store'
-import { COLORS, GLSL_SHADE, type SceneProps } from './common'
+import { COLORS, GLSL_SHADE, drive, type SceneProps } from './common'
 
 /**
  * Gym — a loaded bar. Five plates on each side, matte black with a green rim,
@@ -59,7 +59,7 @@ const PLATES = [
   { r: 0.6, w: 0.14 },
 ]
 
-export default function GymScene({ tier, reducedMotion }: SceneProps) {
+export default function GymScene({ tier, reducedMotion, progress }: SceneProps) {
   const group = useRef<THREE.Group>(null)
   const left = useRef<THREE.Group>(null)
   const right = useRef<THREE.Group>(null)
@@ -92,15 +92,16 @@ export default function GymScene({ tier, reducedMotion }: SceneProps) {
   const s = useRef({ opacity: 0, spread: 0, px: 0, py: 0 })
 
   useFrame((state, delta) => {
+    const { hero, page, weight } = drive(progress)
     const dt = Math.min(delta, 1 / 30)
     const g = group.current
     if (!g || !left.current || !right.current) return
     const st = s.current
     const t = state.clock.elapsedTime
 
-    st.opacity = damp(st.opacity, phase.entered ? 1 : 0, 3, dt)
+    st.opacity = damp(st.opacity, phase.entered ? weight : 0, 3, dt)
     // Spread with scroll, snap back when the reader pauses.
-    const targetSpread = reducedMotion ? 0 : Math.min(1, phase.hero * 1.6) * 0.9 + Math.abs(phase.velocity) * 0.5
+    const targetSpread = reducedMotion ? 0 : Math.min(1, hero * 1.6) * 0.9 + Math.abs(phase.velocity) * 0.5
     st.spread = damp(st.spread, targetSpread, targetSpread > st.spread ? 3.5 : 6, dt)
     st.px = damp(st.px, phase.pointer.x, 3, dt)
     st.py = damp(st.py, phase.pointer.y, 3, dt)
@@ -109,10 +110,10 @@ export default function GymScene({ tier, reducedMotion }: SceneProps) {
     const beat = reducedMotion ? 0 : Math.max(0, Math.sin(t * 5.7)) ** 12 * 0.6 + Math.max(0, Math.sin(t * 5.7 - 1.1)) ** 12 * 0.35
     const breathe = 1 + beat * 0.025
 
-    g.rotation.y = 0.55 + phase.hero * 1.1 + st.px * 0.25 + Math.sin(t * 0.2) * 0.05
+    g.rotation.y = 0.55 + hero * 1.1 + st.px * 0.25 + Math.sin(t * 0.2) * 0.05
     g.rotation.x = -0.12 + st.py * 0.15 + Math.sin(t * 0.17) * 0.03
-    g.rotation.z = 0.08 - phase.hero * 0.25
-    g.position.z = -phase.hero * 2.5
+    g.rotation.z = 0.08 - hero * 0.25
+    g.position.z = -hero * 2.5
     g.scale.setScalar(breathe)
     g.visible = st.opacity > 0.01
 

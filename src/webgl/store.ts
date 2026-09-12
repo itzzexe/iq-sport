@@ -21,6 +21,11 @@ export type Phase = {
   /** true once the preloader has handed over */
   entered: boolean
   /**
+   * Divisions journey: fractional station index (0 = the intro, 1…n = the
+   * sports) the camera is flying towards, or -1 when the journey is not on screen.
+   */
+  journey: number
+  /**
    * Reading direction. The 3D layer stages itself opposite the copy, and the
    * copy flips sides with the language, so the scene has to know which way the
    * page reads. Kept here rather than read from the DOM every frame.
@@ -36,6 +41,7 @@ export const phase: Phase = {
   page: 0,
   pointer: { x: 0, y: 0 },
   entered: false,
+  journey: -1,
   rtl: true,
 }
 
@@ -45,3 +51,6 @@ export function damp(current: number, target: number, speed: number, dt: number)
 }
 
 export const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
+
+// Exposed for debugging in the browser console (read-only use).
+if (typeof window !== 'undefined') (window as unknown as { __iqPhase?: Phase }).__iqPhase = phase

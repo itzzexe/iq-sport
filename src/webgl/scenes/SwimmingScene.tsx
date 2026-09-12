@@ -5,7 +5,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { SIMPLEX_3D } from '../glsl'
 import { damp, phase } from '../store'
-import { COLORS, type SceneProps } from './common'
+import { COLORS, drive, type SceneProps } from './common'
 
 /**
  * Swimming — a black water surface lit only by brand-green caustics.
@@ -103,7 +103,7 @@ void main() {
 }
 `
 
-export default function SwimmingScene({ tier, reducedMotion }: SceneProps) {
+export default function SwimmingScene({ tier, reducedMotion, progress }: SceneProps) {
   const mesh = useRef<THREE.Mesh>(null)
   const mat = useRef<THREE.ShaderMaterial>(null)
 
@@ -129,14 +129,15 @@ export default function SwimmingScene({ tier, reducedMotion }: SceneProps) {
   const s = useRef({ opacity: 0, amp: 0.6, lastPx: 0, lastPy: 0 })
 
   useFrame((state, delta) => {
+    const { hero, page, weight } = drive(progress)
     const dt = Math.min(delta, 1 / 30)
     const m = mat.current
     if (!m) return
     const t = state.clock.elapsedTime
     const st = s.current
 
-    st.opacity = damp(st.opacity, phase.entered ? 1 : 0, 3, dt)
-    const targetAmp = reducedMotion ? 0.15 : 0.45 + phase.hero * 0.7 + Math.abs(phase.velocity) * 0.4
+    st.opacity = damp(st.opacity, phase.entered ? weight : 0, 3, dt)
+    const targetAmp = reducedMotion ? 0.15 : 0.45 + hero * 0.7 + Math.abs(phase.velocity) * 0.4
     st.amp = damp(st.amp, targetAmp, 3, dt)
 
     // Drop a ripple when the pointer has moved a meaningful distance.

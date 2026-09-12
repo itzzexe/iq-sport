@@ -1,11 +1,11 @@
 'use client'
 
 import { useMemo, useRef } from 'react'
-import { useFrame, useLoader } from '@react-three/fiber'
+import { useFrame, useLoader, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { PLANE_FRAG, PLANE_VERT } from './glsl'
 import { damp, phase } from './store'
-import { BRAND, DIVISIONS } from '@/data/site'
+import { BRAND } from './brand'
 import type { Tier } from '@/lib/perf'
 
 /**
@@ -19,13 +19,16 @@ const RADIUS = 6.4
 const PANEL_W = 4.6
 const PANEL_H = 2.85
 
-type Props = { tier: Tier }
+/** One curved panel per division — slug for the key, an image URL for the texture. */
+export type RingPanel = { slug: string; image: string }
 
-export function DivisionRing({ tier }: Props) {
+type Props = { tier: Tier; panels: RingPanel[] }
+
+export function DivisionRing({ tier, panels }: Props) {
   const group = useRef<THREE.Group>(null)
-  const count = DIVISIONS.length
+  const count = panels.length
 
-  const urls = useMemo(() => DIVISIONS.map((d) => `/img/${d.image}-640.webp`), [])
+  const urls = useMemo(() => panels.map((d) => d.image), [panels])
   const textures = useLoader(THREE.TextureLoader, urls)
 
   useMemo(() => {
@@ -73,7 +76,9 @@ export function DivisionRing({ tier }: Props) {
     [textures],
   )
 
-  const smoothed = useRef({ rotation: 0, opacity: 0, velocity: 0 })
+  const smoothed = useRef({ rotation: 0, opacity: 0, velocity: 0, x: 0 })
+  const viewport = useThree((state) => state.viewport)
+  const size = useThree((state) => state.size)
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, 1 / 30)
@@ -92,11 +97,17 @@ export function DivisionRing({ tier }: Props) {
     // Fades in over the first slice of the pin and is fully gone by the end of
     // it — a residual few percent would otherwise ghost over the next section.
     const fadeIn = Math.min(1, phase.divisions * 3.2)
-    const fadeOut = 1 - Math.max(0, (phase.divisions - 0.88) / 0.12)
+    const fadeOut = 1 - Math.max(0, (phase.divisions - 0.94) / 0.06)
     const targetOpacity = phase.entered ? Math.max(0, Math.min(1, fadeIn * fadeOut)) : 0
     s.opacity = damp(s.opacity, targetOpacity, 5, dt)
 
+    // The chapter copy is start-aligned, so the front panel slides towards the
+    // free side of the screen (left in Arabic, right in English) on wide views.
+    const shift = size.width >= 1024 ? viewport.width * 0.2 : 0
+    s.x = damp(s.x, shift * (phase.rtl ? -1 : 1), 3, dt)
+
     g.rotation.y = s.rotation
+    g.position.x = s.x
     g.position.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.05
     g.visible = s.opacity > 0.005
 
@@ -118,7 +129,7 @@ export function DivisionRing({ tier }: Props) {
 
   return (
     <group ref={group} position={[0, 0, -RADIUS + 1.6]} dispose={null}>
-      {DIVISIONS.map((division, i) => {
+      {panels.map((division, i) => {
         const angle = (i / count) * Math.PI * 2
         return (
           <mesh

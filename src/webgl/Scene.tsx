@@ -5,7 +5,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Ribbons } from './Ribbons'
 import { Particles } from './Particles'
-import { DivisionRing } from './DivisionRing'
+import { DivisionRing, type RingPanel } from './DivisionRing'
 import { damp, phase } from './store'
 import { BUDGET, detectCapabilities, type Capabilities } from '@/lib/perf'
 
@@ -64,7 +64,7 @@ function Throttle() {
   return null
 }
 
-function SceneContents({ caps, galleryReady }: { caps: Capabilities; galleryReady: boolean }) {
+function SceneContents({ caps, galleryReady, panels }: { caps: Capabilities; galleryReady: boolean; panels: RingPanel[] }) {
   const budget = BUDGET[caps.tier]
   const pixelRatio = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, caps.dpr[1]) : 1
 
@@ -81,16 +81,21 @@ function SceneContents({ caps, galleryReady }: { caps: Capabilities; galleryRead
 
       {/* Six panel textures are ~230 kB that nobody needs until the gallery is
           in reach, so the ring is not mounted until the reader is heading for it. */}
-      {galleryReady && (
+      {galleryReady && panels.length > 0 && (
         <Suspense fallback={null}>
-          <DivisionRing tier={caps.tier} />
+          <DivisionRing tier={caps.tier} panels={panels} />
         </Suspense>
       )}
     </>
   )
 }
 
-export default function Scene() {
+/**
+ * The persistent brand scene: extruded logo ribbons, particle field and — on
+ * the divisions page — the ring of facility panels. `panels` come from the CMS
+ * (one per published division); an empty list simply skips the ring.
+ */
+export default function Scene({ panels = [] }: { panels?: RingPanel[] }) {
   const [caps, setCaps] = useState<Capabilities | null>(null)
   const [galleryReady, setGalleryReady] = useState(false)
 
@@ -102,8 +107,11 @@ export default function Scene() {
   // and a half before it arrives — far enough ahead that the textures are
   // decoded by the time the pin starts, late enough to stay off first load.
   useEffect(() => {
+    if (panels.length === 0) return
+    // The ring only exists for a page that stages it (a section with id="divisions").
     const section = document.getElementById('divisions')
-    if (!section || typeof IntersectionObserver === 'undefined') {
+    if (!section) return
+    if (typeof IntersectionObserver === 'undefined') {
       setGalleryReady(true)
       return
     }
@@ -118,7 +126,7 @@ export default function Scene() {
     )
     io.observe(section)
     return () => io.disconnect()
-  }, [])
+  }, [panels.length])
 
   // Pointer feeds the store directly; nothing here triggers a React render.
   useEffect(() => {
@@ -164,7 +172,7 @@ export default function Scene() {
           renderer.toneMappingExposure = 1.05
         }}
       >
-        <SceneContents caps={caps} galleryReady={galleryReady} />
+        <SceneContents caps={caps} galleryReady={galleryReady} panels={panels} />
       </Canvas>
     </div>
   )

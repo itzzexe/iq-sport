@@ -1,9 +1,25 @@
 import * as THREE from 'three'
-import { BRAND } from '@/data/site'
+import { BRAND } from '../brand'
+import { phase } from '../store'
 import type { Tier } from '@/lib/perf'
 
+/**
+ * Optional per-scene drive. When supplied (the divisions journey mounts several
+ * scenes at once) it replaces the page-wide `phase.hero` / `phase.page` with a
+ * local 0→1 progress and a visibility weight, so each scene stages itself
+ * independently. Mutable on purpose: it changes every frame.
+ */
+export type SceneProgress = { value: number; weight: number }
+
 /** Shared props every division scene receives. */
-export type SceneProps = { tier: Tier; reducedMotion: boolean }
+export type SceneProps = { tier: Tier; reducedMotion: boolean; progress?: SceneProgress }
+
+/** Resolves the drive for this frame: local progress if provided, else the page. */
+export function drive(progress?: SceneProgress) {
+  return progress
+    ? { hero: progress.value, page: progress.value, weight: progress.weight }
+    : { hero: phase.hero, page: phase.page, weight: 1 }
+}
 
 export const COLORS = {
   green: new THREE.Color(BRAND.green),

@@ -5,7 +5,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { SIMPLEX_3D } from '../glsl'
 import { damp, phase } from '../store'
-import { COLORS, GLSL_HASH, type SceneProps } from './common'
+import { COLORS, GLSL_HASH, drive, type SceneProps } from './common'
 
 /**
  * Padel — the perforated face of the racket, blown up into a field of
@@ -91,7 +91,7 @@ void main() {
 }
 `
 
-export default function PadelScene({ tier, reducedMotion }: SceneProps) {
+export default function PadelScene({ tier, reducedMotion, progress }: SceneProps) {
   const group = useRef<THREE.Group>(null)
   const ball = useRef<THREE.Mesh>(null)
   const mat = useRef<THREE.ShaderMaterial>(null)
@@ -134,6 +134,7 @@ export default function PadelScene({ tier, reducedMotion }: SceneProps) {
   const s = useRef({ opacity: 0, wave: 0, px: 0, py: 0, placed: false })
 
   useFrame((state, delta) => {
+    const { hero, page, weight } = drive(progress)
     const dt = Math.min(delta, 1 / 30)
     const im = meshRef.current
     const m = mat.current
@@ -157,8 +158,8 @@ export default function PadelScene({ tier, reducedMotion }: SceneProps) {
       st.placed = true
     }
 
-    st.opacity = damp(st.opacity, phase.entered ? 1 : 0, 3, dt)
-    st.wave = damp(st.wave, reducedMotion ? 0.25 : 0.7 + phase.hero * 0.6 + Math.abs(phase.velocity) * 0.5, 3, dt)
+    st.opacity = damp(st.opacity, phase.entered ? weight : 0, 3, dt)
+    st.wave = damp(st.wave, reducedMotion ? 0.25 : 0.7 + hero * 0.6 + Math.abs(phase.velocity) * 0.5, 3, dt)
     st.px = damp(st.px, phase.pointer.x, 4, dt)
     st.py = damp(st.py, phase.pointer.y, 4, dt)
 
@@ -170,10 +171,10 @@ export default function PadelScene({ tier, reducedMotion }: SceneProps) {
     // Staged as a floor of dots receding under the copy rather than a wall
     // in front of it: tipped well back, pushed into depth, and tipping further
     // as the page scrolls — a racket face turning away after the strike.
-    g.rotation.x = -1.05 - phase.hero * 0.35 + st.py * 0.05
+    g.rotation.x = -1.05 - hero * 0.35 + st.py * 0.05
     g.rotation.z = Math.sin(t * 0.12) * 0.04 + st.px * 0.04
-    g.position.y = 0.9 + phase.hero * 1.2
-    g.position.z = -4.5 - phase.hero * 3
+    g.position.y = 0.9 + hero * 1.2
+    g.position.z = -4.5 - hero * 3
     g.visible = st.opacity > 0.01
 
     // Ball on a figure-eight above the sheet.

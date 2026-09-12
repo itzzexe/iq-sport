@@ -4,7 +4,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { damp, phase } from '../store'
-import { COLORS, type SceneProps } from './common'
+import { COLORS, drive, type SceneProps } from './common'
 
 /**
  * Tennis — a regulation court drawn as light, receding into black.
@@ -69,7 +69,7 @@ function layout(mesh: THREE.InstancedMesh, segs: Seg[], width: number, y: number
 
 const TRAIL = 30
 
-export default function TennisScene({ tier, reducedMotion }: SceneProps) {
+export default function TennisScene({ tier, reducedMotion, progress }: SceneProps) {
   const group = useRef<THREE.Group>(null)
   const court = useRef<THREE.InstancedMesh>(null)
   const glow = useRef<THREE.InstancedMesh>(null)
@@ -86,6 +86,7 @@ export default function TennisScene({ tier, reducedMotion }: SceneProps) {
   const dummy = useMemo(() => new THREE.Object3D(), [])
 
   useFrame((state, delta) => {
+    const { hero, page, weight } = drive(progress)
     const dt = Math.min(delta, 1 / 30)
     const g = group.current
     if (!g || !court.current || !glow.current || !grid.current) return
@@ -99,11 +100,11 @@ export default function TennisScene({ tier, reducedMotion }: SceneProps) {
       st.placed = true
     }
 
-    st.opacity = damp(st.opacity, phase.entered ? 1 : 0, 3, dt)
+    st.opacity = damp(st.opacity, phase.entered ? weight : 0, 3, dt)
     st.px = damp(st.px, phase.pointer.x, 3, dt)
     st.py = damp(st.py, phase.pointer.y, 3, dt)
 
-    g.rotation.y = st.px * 0.1 + phase.hero * 0.3
+    g.rotation.y = st.px * 0.1 + hero * 0.3
     g.visible = st.opacity > 0.01
     ;(court.current.material as THREE.MeshBasicMaterial).opacity = st.opacity
     ;(glow.current.material as THREE.MeshBasicMaterial).opacity = st.opacity * 0.22

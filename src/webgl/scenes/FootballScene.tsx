@@ -4,7 +4,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { damp, phase } from '../store'
-import { COLORS, GLSL_HASH, GLSL_SHADE, type SceneProps } from './common'
+import { COLORS, GLSL_HASH, GLSL_SHADE, drive, type SceneProps } from './common'
 
 /**
  * Football — a faceted ball that comes apart as you scroll and finds itself
@@ -115,7 +115,7 @@ function buildBall(detail: number) {
   return geo
 }
 
-export default function FootballScene({ tier, reducedMotion }: SceneProps) {
+export default function FootballScene({ tier, reducedMotion, progress }: SceneProps) {
   const mesh = useRef<THREE.Mesh>(null)
   const mat = useRef<THREE.ShaderMaterial>(null)
   const geometry = useMemo(() => buildBall(tier === 'low' ? 1 : 2), [tier])
@@ -134,6 +134,7 @@ export default function FootballScene({ tier, reducedMotion }: SceneProps) {
   const s = useRef({ opacity: 0, explode: 0, px: 0, py: 0 })
 
   useFrame((state, delta) => {
+    const { hero, page, weight } = drive(progress)
     const dt = Math.min(delta, 1 / 30)
     const m = mesh.current
     const sm = mat.current
@@ -141,21 +142,21 @@ export default function FootballScene({ tier, reducedMotion }: SceneProps) {
     const st = s.current
     const t = state.clock.elapsedTime
 
-    st.opacity = damp(st.opacity, phase.entered ? 1 : 0, 3, dt)
+    st.opacity = damp(st.opacity, phase.entered ? weight : 0, 3, dt)
     st.px = damp(st.px, phase.pointer.x, 3, dt)
     st.py = damp(st.py, phase.pointer.y, 3, dt)
 
     // Comes apart across the hero, hangs open through the story, closes at the
     // foot of the page so the CTA sits next to a whole ball again.
-    const open = Math.min(1, phase.hero * 1.4)
-    const close = Math.max(0, (phase.page - 0.72) / 0.22)
+    const open = Math.min(1, hero * 1.4)
+    const close = Math.max(0, (page - 0.72) / 0.22)
     const target = reducedMotion ? 0 : Math.max(0, open - close) + Math.abs(phase.velocity) * 0.25
     st.explode = damp(st.explode, target, 3, dt)
 
-    m.rotation.y = t * (reducedMotion ? 0.05 : 0.22) + st.px * 0.4 + phase.page * 2.0
+    m.rotation.y = t * (reducedMotion ? 0.05 : 0.22) + st.px * 0.4 + page * 2.0
     m.rotation.x = Math.sin(t * 0.3) * 0.15 + st.py * 0.3
-    m.position.y = Math.sin(t * 0.8) * 0.08 - phase.hero * 0.3
-    m.position.z = -phase.hero * 1.5
+    m.position.y = Math.sin(t * 0.8) * 0.08 - hero * 0.3
+    m.position.z = -hero * 1.5
     m.visible = st.opacity > 0.01
 
     sm.uniforms.uExplode.value = st.explode

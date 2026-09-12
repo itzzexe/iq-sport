@@ -5,7 +5,17 @@ build/
 .DS_Store
 *.pem
 npm-debug.log*
-.env*
+yarn-error.log*
+.env
+.env*.local
 !.env.example
 next-env.d.ts
-tsconfig.tsbuildinfo
+*.tsbuildinfo
+.vercel
+
+# Payload runtime data (database + uploaded media) — never commit
+/data/
+/public/media/
+
+# raw font sources supplied by the client — converted WOFF2 copies live in src/fonts
+/New folder/

@@ -6,7 +6,7 @@ import * as THREE from 'three'
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js'
 import { RIBBON_FRAG, RIBBON_VERT } from './glsl'
 import { clamp01, damp, phase } from './store'
-import { BRAND } from '@/data/site'
+import { BRAND } from './brand'
 import type { Tier } from '@/lib/perf'
 
 /**
