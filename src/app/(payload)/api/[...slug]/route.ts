@@ -11,6 +11,9 @@ import {
   REST_PUT,
 } from '@payloadcms/next/routes'
 
+/** Image sizes for a large upload can take longer than the 10 s serverless default. */
+export const maxDuration = 60
+
 const get = REST_GET(config)
 
 /**

@@ -17,13 +17,23 @@ async function isDraft() {
 }
 
 /**
+ * Namespace for cache keys. Next.js keeps `unstable_cache` results on disk in
+ * `.next/cache` (restored between Vercel builds) and, on Vercel, in a data
+ * cache that outlives deployments — without this a new deploy could prerender
+ * pages from the content of an earlier build. One value per deployment on
+ * Vercel; per process otherwise (a rebuild or restart starts clean).
+ */
+const CACHE_EPOCH = process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA || Date.now().toString(36)
+
+/**
  * Every read goes through here. Published content is cached by Next.js and
  * tagged so a CMS write (see payload/hooks/revalidate.ts) purges it; draft
- * previews bypass the cache and see unpublished changes.
+ * previews bypass the cache and see unpublished changes. The hourly
+ * revalidation is a safety net in case a purge is ever missed.
  */
 async function cached<T>(key: string[], tags: string[], fetcher: () => Promise<T>): Promise<T> {
   if (await isDraft()) return fetcher()
-  return unstable_cache(fetcher, key, { tags: ['site', ...tags] })()
+  return unstable_cache(fetcher, [CACHE_EPOCH, ...key], { tags: ['site', ...tags], revalidate: 3600 })()
 }
 
 /* ------------------------------------------------------------- globals */

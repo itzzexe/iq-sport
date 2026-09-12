@@ -64,6 +64,9 @@ async function isSeeded(payload: Payload, attempts = 20): Promise<boolean> {
 export async function ensureSeeded(payload: Payload) {
   if (process.env.PAYLOAD_SEED === 'false') return
   if (process.env.PAYLOAD_SEED_SKIP_ON_INIT === 'true') return
+  // On Vercel the seed runs once during the build (prebuild → `npm run seed`):
+  // functions are short-lived and their filesystem is read-only.
+  if (process.env.VERCEL === '1') return
 
   await tuneSqlite(payload)
 

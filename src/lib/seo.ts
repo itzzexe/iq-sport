@@ -2,15 +2,16 @@ import type { Metadata } from 'next'
 import type { Media, Setting } from '@/payload-types'
 import { href, LANG_TAG, LOCALES, OG_LOCALE, type Locale } from './i18n'
 import { isMedia, mediaUrl } from './media'
+import { serverURL } from './server-url'
 
 /** Canonical origin: CMS setting first, then env, then localhost. No trailing slash. */
 export function siteOrigin(settings?: Pick<Setting, 'siteUrl'> | null) {
-  const raw = settings?.siteUrl?.trim() || process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+  const raw = settings?.siteUrl?.trim() || serverURL()
   return raw.replace(/\/+$/, '')
 }
 
 export const absoluteUrl = (settings: Pick<Setting, 'siteUrl'> | null | undefined, path: string) =>
-  `${siteOrigin(settings)}${path.startsWith('/') ? path : `/${path}`}`
+  /^https?:\/\//i.test(path) ? path : `${siteOrigin(settings)}${path.startsWith('/') ? path : `/${path}`}`
 
 type MetaGroup = { title?: string | null; description?: string | null; image?: number | Media | null } | undefined
 

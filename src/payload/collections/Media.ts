@@ -30,16 +30,19 @@ export const Media: CollectionConfig = {
     // so uploads made after deployment work without a rebuild.
     staticDir,
     adminThumbnail: 'thumbnail',
-    handlers: [
-      // Payload answers a file that is missing on disk with a generic 500; a plain
-      // 404 is the truthful status and the one browsers and CDNs treat correctly.
-      (_req, { params }) => {
-        const file = path.resolve(staticDir, params.filename)
-        if (!file.startsWith(staticDir + path.sep)) return new Response('Bad request', { status: 400 })
-        if (!existsSync(file)) return new Response('Not found', { status: 404, headers: { 'cache-control': 'no-store' } })
-        // present: fall through and let Payload stream it
-      },
-    ],
+    // Local disk only (on Vercel the Blob plugin takes over and links files directly).
+    // Payload answers a file that is missing on disk with a generic 500; a plain
+    // 404 is the truthful status and the one browsers and CDNs treat correctly.
+    handlers: process.env.BLOB_READ_WRITE_TOKEN
+      ? []
+      : [
+          (_req, { params }) => {
+            const file = path.resolve(staticDir, params.filename)
+            if (!file.startsWith(staticDir + path.sep)) return new Response('Bad request', { status: 400 })
+            if (!existsSync(file)) return new Response('Not found', { status: 404, headers: { 'cache-control': 'no-store' } })
+            // present: fall through and let Payload stream it
+          },
+        ],
     focalPoint: true,
     mimeTypes: ['image/*'],
     imageSizes: [

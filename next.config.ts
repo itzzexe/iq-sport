@@ -5,6 +5,13 @@ import type { NextConfig } from 'next'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 
+function emulatorPattern() {
+  const base = process.env.STORAGE_VERCEL_BLOB_BASE_URL
+  if (!base) return []
+  const u = new URL(base)
+  return [{ protocol: u.protocol.replace(':', '') as 'http' | 'https', hostname: u.hostname, port: u.port }]
+}
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -12,6 +19,11 @@ const nextConfig: NextConfig = {
   images: {
     // Uploads are served by Payload from this route; Next.js optimises them on demand.
     localPatterns: [{ pathname: '/api/media/file/**' }, { pathname: '/img/**' }, { pathname: '/brand/**' }, { pathname: '/**' }],
+    // Uploads on Vercel live in Vercel Blob and are linked from its CDN
+    // (or from a local Blob emulator while testing that setup).
+    remotePatterns: [{ protocol: 'https', hostname: '*.public.blob.vercel-storage.com' }, ...emulatorPattern()],
+    // A Blob emulator runs on localhost, which the optimizer's SSRF guard would refuse.
+    dangerouslyAllowLocalIP: Boolean(process.env.STORAGE_VERCEL_BLOB_BASE_URL),
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 828, 1080, 1280, 1600, 1920],
     minimumCacheTTL: 60 * 60 * 24 * 30,

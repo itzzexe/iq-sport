@@ -2,6 +2,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { seoPlugin } from '@payloadcms/plugin-seo'
+import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
 import {
   BoldFeature,
   FixedToolbarFeature,
@@ -33,10 +34,38 @@ import { Settings } from './payload/globals/Settings'
 import { L } from './payload/labels'
 import { ensureSeeded } from './payload/seed/ensure'
 import { migrations } from './migrations'
+import { onVercel, serverURL, trustedOrigins } from './lib/server-url'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 
-export const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+export const SERVER_URL = serverURL()
+
+// SQLite file locally; a remote libSQL/Turso database in production. The
+// Vercel Marketplace's Turso integration provides TURSO_* names, so both work.
+const DATABASE_URL = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || 'file:./data/iq-sport.db'
+const DATABASE_AUTH_TOKEN = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN || undefined
+
+// Uploads go to Vercel Blob whenever its token is present (Vercel injects it
+// when a Blob store is connected); otherwise they stay on the local disk.
+const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN
+
+if (onVercel) {
+  // A serverless filesystem is read-only and thrown away after every request:
+  // neither a SQLite file nor local uploads can live there. Fail the build
+  // with a clear message instead of deploying a site that loses its content.
+  if (DATABASE_URL.startsWith('file:')) {
+    throw new Error(
+      'قاعدة البيانات على Vercel يجب أن تكون Turso/libSQL: أضف DATABASE_URL=libsql://… و DATABASE_AUTH_TOKEN (أو ثبّت تكامل Turso من Vercel Marketplace). ' +
+        'On Vercel the database must be a remote libSQL/Turso URL — set DATABASE_URL and DATABASE_AUTH_TOKEN (or install the Turso integration).',
+    )
+  }
+  if (!BLOB_TOKEN) {
+    throw new Error(
+      'الصور على Vercel تحتاج مخزن Blob: من لوحة Vercel ← Storage ← Create ← Blob ثم اربطه بالمشروع (يضيف BLOB_READ_WRITE_TOKEN تلقائياً). ' +
+        'Uploads on Vercel need a Blob store — create one under Storage and connect it to the project (adds BLOB_READ_WRITE_TOKEN).',
+    )
+  }
+}
 
 const SEO_TARGETS = {
   collections: ['divisions', 'tournaments'],
@@ -46,8 +75,8 @@ const SEO_TARGETS = {
 export default buildConfig({
   serverURL: SERVER_URL,
   secret: process.env.PAYLOAD_SECRET || '',
-  cors: [SERVER_URL],
-  csrf: [SERVER_URL],
+  cors: trustedOrigins(),
+  csrf: trustedOrigins(),
 
   admin: {
     user: Users.slug,
@@ -107,10 +136,7 @@ export default buildConfig({
   }),
 
   db: sqliteAdapter({
-    client: {
-      url: process.env.DATABASE_URL || 'file:./data/iq-sport.db',
-      authToken: process.env.DATABASE_AUTH_TOKEN || undefined,
-    },
+    client: { url: DATABASE_URL, authToken: DATABASE_AUTH_TOKEN },
     // One schema mechanism everywhere: the committed migrations in src/migrations.
     // `npm run dev` / `npm run build` apply them first (pre-scripts), and a
     // production server applies any pending ones on start-up.
@@ -119,6 +145,24 @@ export default buildConfig({
   }),
 
   plugins: [
+    vercelBlobStorage({
+      enabled: Boolean(BLOB_TOKEN),
+      token: BLOB_TOKEN,
+      // Public files are linked straight from the Blob CDN instead of being
+      // streamed through a serverless function on every view.
+      collections: { media: { disablePayloadAccessControl: true } },
+      // Uploads go through the server on purpose: the plugin's direct-from-browser
+      // mode stores the file under its original name before Payload de-duplicates
+      // it, so a second "photo.jpg" would overwrite the first one's file and the
+      // renamed document would point at nothing. (`addRandomSuffix` is no fix —
+      // it mislabels the generated sizes.) The cost is Vercel's request limit,
+      // enforced below as a clear 4 MB cap per image.
+      clientUploads: false,
+      addRandomSuffix: false,
+      // Keep the schema identical with and without the plugin (local vs Vercel),
+      // so one set of migrations serves both.
+      alwaysInsertFields: true,
+    }),
     seoPlugin({
       collections: SEO_TARGETS.collections,
       globals: SEO_TARGETS.globals,
@@ -149,7 +193,8 @@ export default buildConfig({
 
   graphQL: { disable: true },
   sharp,
-  upload: { limits: { fileSize: 15 * 1024 * 1024 } },
+  // Vercel functions reject request bodies above 4.5 MB, so the cap is lower there.
+  upload: { limits: { fileSize: (onVercel ? 4 : 15) * 1024 * 1024 } },
   typescript: { outputFile: path.resolve(dirname, 'payload-types.ts') },
 
   onInit: ensureSeeded,

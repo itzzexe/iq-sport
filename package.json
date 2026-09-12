@@ -6,14 +6,14 @@
   "description": "مجموعة العراق الرياضية — IQ Sports Group website + Payload CMS",
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=20.9.0"
+    "node": "22.x"
   },
   "scripts": {
     "predev": "cross-env NODE_OPTIONS=--no-deprecation tsx src/scripts/heal-dev-cache.ts && cross-env NODE_OPTIONS=--no-deprecation tsx src/scripts/migrate.ts",
     "dev": "cross-env NODE_OPTIONS=--no-deprecation next dev",
     "dev:clean": "cross-env NODE_OPTIONS=--no-deprecation node -e \"require('fs').rmSync('.next/dev',{recursive:true,force:true})\" && npm run dev",
-    "prebuild": "cross-env NODE_OPTIONS=--no-deprecation tsx src/scripts/migrate.ts",
-    "build": "cross-env NODE_OPTIONS=\"--no-deprecation --max-old-space-size=8000\" next build",
+    "prebuild": "cross-env NODE_OPTIONS=--no-deprecation tsx src/scripts/migrate.ts && cross-env NODE_OPTIONS=--no-deprecation tsx src/payload/seed/run.ts",
+    "build": "cross-env NODE_OPTIONS=\"--no-deprecation --max-old-space-size=6144\" next build",
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
     "typecheck": "tsc --noEmit",
     "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
@@ -30,6 +30,7 @@
     "@payloadcms/next": "3.89.0",
     "@payloadcms/plugin-seo": "3.89.0",
     "@payloadcms/richtext-lexical": "3.89.0",
+    "@payloadcms/storage-vercel-blob": "^3.89.0",
     "@payloadcms/translations": "3.89.0",
     "@payloadcms/ui": "3.89.0",
     "@react-three/fiber": "^9.7.0",

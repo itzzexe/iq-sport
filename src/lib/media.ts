@@ -12,9 +12,10 @@ export function mediaUrl(m: MediaRef, size?: MediaSize): string | null {
   const sized = size ? m.sizes?.[size] : undefined
   const raw = sized?.url || m.url
   if (!raw) return null
-  // Payload prefixes URLs with serverURL; keep them relative so next/image treats
-  // them as local files (no remotePatterns, no self-fetch over the network).
-  const url = raw.startsWith('http') ? toRelative(raw) : raw
+  // Files served by Payload itself come back prefixed with serverURL; keep those
+  // relative so next/image treats them as local. Files on a CDN (Vercel Blob)
+  // stay absolute.
+  const url = /^https?:\/\/[^/]+\/api\/media\/file\//i.test(raw) ? toRelative(raw) : raw
   // cache-bust when the file is replaced in the CMS but keeps its name
   const stamp = m.updatedAt ? `?v=${encodeURIComponent(new Date(m.updatedAt).getTime().toString(36))}` : ''
   return `${url}${stamp}`

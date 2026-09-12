@@ -3,7 +3,12 @@ import type { CollectionSlug, GlobalSlug, Payload } from 'payload'
 import { UI_STRINGS } from '@/lib/ui-strings'
 import { BRANCHES, COACHES, DIVISIONS, HOME, MEDIA, PAGES, SAMPLE_TOURNAMENTS, SETTINGS } from './content'
 
-const CONTEXT = { disableRevalidate: true }
+/**
+ * A fresh context per call: Payload hands the object to hooks by reference and
+ * the cloud-storage plugin leaves markers on it (`skipCloudStorage`) that would
+ * make every later upload in the same seed run silently skip the storage.
+ */
+const ctx = () => ({ disableRevalidate: true })
 const CONTENT_COLLECTIONS: CollectionSlug[] = ['tournaments', 'coaches', 'divisions', 'branches', 'media']
 
 type Data = Record<string, unknown>
@@ -77,9 +82,9 @@ export async function seed(payload: Payload) {
       data: { alt: item.alt.ar },
       filePath: path.join(root, item.file),
       locale: 'ar',
-      context: CONTEXT,
+      context: ctx(),
     })
-    await payload.update({ collection: 'media', id: doc.id, data: { alt: item.alt.en }, locale: 'en', context: CONTEXT })
+    await payload.update({ collection: 'media', id: doc.id, data: { alt: item.alt.en }, locale: 'en', context: ctx() })
     media[key] = doc.id
   }
   const img = (key?: string) => (key ? media[key] : undefined)
@@ -92,7 +97,7 @@ export async function seed(payload: Payload) {
       data: merge({ ...shared, _status: status }, loc(localized, 'ar')) as never,
       draft,
       locale: 'ar',
-      context: CONTEXT,
+      context: ctx(),
     })
     await payload.update({
       collection,
@@ -100,7 +105,7 @@ export async function seed(payload: Payload) {
       data: { _status: status, ...(attachRowIds(loc(localized, 'en'), created) as Data) } as never,
       draft,
       locale: 'en',
-      context: CONTEXT,
+      context: ctx(),
     })
     return created.id as number
   }
@@ -159,7 +164,7 @@ export async function seed(payload: Payload) {
       collection: 'divisions',
       id: divisions[d.slug],
       data: { coaches: d.coaches.map((k) => coaches[k]), _status: 'published' },
-      context: CONTEXT,
+      context: ctx(),
     })
   }
 
@@ -189,13 +194,13 @@ export async function seed(payload: Payload) {
       slug,
       data: merge(shared, loc(localized, 'ar')) as never,
       locale: 'ar',
-      context: CONTEXT,
+      context: ctx(),
     })
     await payload.updateGlobal({
       slug,
       data: attachRowIds(loc(localized, 'en'), saved) as never,
       locale: 'en',
-      context: CONTEXT,
+      context: ctx(),
     })
   }
 
@@ -269,14 +274,14 @@ export async function seed(payload: Payload) {
   await updateBilingualGlobal('tournaments-page', {}, PAGES.tournaments)
   await updateBilingualGlobal('vision-page', { image: img(visionImage) }, visionPage)
 
-  await payload.updateGlobal({ slug: 'settings', data: { seededAt: new Date().toISOString() }, context: CONTEXT })
+  await payload.updateGlobal({ slug: 'settings', data: { seededAt: new Date().toISOString() }, context: ctx() })
   log('done')
 }
 
 /** Removes every content document (and uploaded file) so `seed` can start clean. Destructive. */
 export async function resetContent(payload: Payload) {
   for (const collection of CONTENT_COLLECTIONS) {
-    await payload.delete({ collection, where: { id: { exists: true } }, context: CONTEXT })
+    await payload.delete({ collection, where: { id: { exists: true } }, context: ctx() })
   }
-  await payload.updateGlobal({ slug: 'settings', data: { seededAt: null }, context: CONTEXT })
+  await payload.updateGlobal({ slug: 'settings', data: { seededAt: null }, context: ctx() })
 }
