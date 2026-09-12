@@ -8,7 +8,9 @@ import { revalidateCollection } from '../hooks/revalidate'
 import { L } from '../labels'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
-const staticDir = path.resolve(dirname, '../../../public/media')
+// Uploads live in public/media by default; a server can keep them outside the
+// release directory (MEDIA_DIR=/opt/iq-sport/media) so deploys never touch them.
+const staticDir = process.env.MEDIA_DIR ? path.resolve(process.env.MEDIA_DIR) : path.resolve(dirname, '../../../public/media')
 
 export const Media: CollectionConfig = {
   slug: 'media',
