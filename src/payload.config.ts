@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
@@ -42,29 +43,42 @@ export const SERVER_URL = serverURL()
 
 // SQLite file locally; a remote libSQL/Turso database in production. The
 // Vercel Marketplace's Turso integration provides TURSO_* names, so both work.
-const DATABASE_URL = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || 'file:./data/iq-sport.db'
+const CONFIGURED_DB_URL = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || 'file:./data/iq-sport.db'
 const DATABASE_AUTH_TOKEN = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN || undefined
 
 // Uploads go to Vercel Blob whenever its token is present (Vercel injects it
 // when a Blob store is connected); otherwise they stay on the local disk.
 const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN
 
-if (onVercel) {
-  // A serverless filesystem is read-only and thrown away after every request:
-  // neither a SQLite file nor local uploads can live there. Fail the build
-  // with a clear message instead of deploying a site that loses its content.
-  if (DATABASE_URL.startsWith('file:')) {
-    throw new Error(
-      'قاعدة البيانات على Vercel يجب أن تكون Turso/libSQL: أضف DATABASE_URL=libsql://… و DATABASE_AUTH_TOKEN (أو ثبّت تكامل Turso من Vercel Marketplace). ' +
-        'On Vercel the database must be a remote libSQL/Turso URL — set DATABASE_URL and DATABASE_AUTH_TOKEN (or install the Turso integration).',
-    )
+/**
+ * Demo mode: on Vercel without a Turso database the SQLite file is created and
+ * seeded during the build, shipped with the functions, and copied to /tmp at
+ * runtime (the only writable place). The site works, but changes made in the
+ * admin are temporary — connect Turso (and Blob) for a permanent CMS.
+ */
+function resolveDatabaseURL(): string {
+  if (!onVercel || !CONFIGURED_DB_URL.startsWith('file:')) return CONFIGURED_DB_URL
+  const bundled = path.resolve(process.cwd(), CONFIGURED_DB_URL.slice('file:'.length))
+  let writable = true
+  try {
+    fs.mkdirSync(path.dirname(bundled), { recursive: true })
+    fs.accessSync(path.dirname(bundled), fs.constants.W_OK)
+  } catch {
+    writable = false
   }
-  if (!BLOB_TOKEN) {
-    throw new Error(
-      'الصور على Vercel تحتاج مخزن Blob: من لوحة Vercel ← Storage ← Create ← Blob ثم اربطه بالمشروع (يضيف BLOB_READ_WRITE_TOKEN تلقائياً). ' +
-        'Uploads on Vercel need a Blob store — create one under Storage and connect it to the project (adds BLOB_READ_WRITE_TOKEN).',
-    )
-  }
+  if (writable) return CONFIGURED_DB_URL // build step: create/seed the file in place
+  const runtimeCopy = '/tmp/iq-sport.db'
+  if (!fs.existsSync(runtimeCopy) && fs.existsSync(bundled)) fs.copyFileSync(bundled, runtimeCopy)
+  return `file:${runtimeCopy}`
+}
+
+const DATABASE_URL = resolveDatabaseURL()
+
+if (onVercel && CONFIGURED_DB_URL.startsWith('file:') && process.env.PAYLOAD_MIGRATING === 'true') {
+  console.warn(
+    '[db] وضع العرض: لا توجد قاعدة Turso، التعديلات من لوحة التحكم مؤقتة. ' +
+      'Demo mode: no Turso database configured — admin edits are not permanent.',
+  )
 }
 
 const SEO_TARGETS = {

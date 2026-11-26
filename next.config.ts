@@ -15,6 +15,9 @@ function emulatorPattern() {
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Demo mode on Vercel (no Turso): ship the build-time SQLite database and
+  // seeded images with the server functions.
+  outputFileTracingIncludes: { '/**': ['./data/iq-sport.db', './public/media/**'] },
   compress: true,
   images: {
     // Uploads are served by Payload from this route; Next.js optimises them on demand.
